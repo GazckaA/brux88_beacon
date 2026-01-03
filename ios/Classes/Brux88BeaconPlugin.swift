@@ -33,7 +33,7 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     }, onCancel: { [weak instance] in
       instance?.beaconsSink = nil
     }))
-
+    
     monitoringChannel.setStreamHandler(MonitoringStreamHandler(sink: { [weak instance] sink in
       instance?.monitoringSink = sink
     }, onCancel: { [weak instance] in
@@ -93,24 +93,13 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     
     // Start monitoring for beacons
     if let selectedUUID = selectedBeaconUUID {
-      // Start monitoring for specific beacon
-      var beaconConstraints: [NSNumber]? = nil
-      if let major = selectedBeaconMajor {
-        if let minor = selectedBeaconMinor {
-          beaconConstraints = [NSNumber(value: major), NSNumber(value: minor)]
-        } else {
-          beaconConstraints = [NSNumber(value: major)]
-        }
-      }
-      
+      // Create constraint with optional major/minor
       let constraint = CLBeaconIdentityConstraint(uuid: selectedUUID, major: selectedBeaconMajor, minor: selectedBeaconMinor)
       let beaconRegion = CLBeaconRegion(beaconIdentityConstraint: constraint, identifier: "SelectedBeacon")
+      
       locationManager.startMonitoring(for: beaconRegion)
       locationManager.startRangingBeacons(satisfying: constraint)
     } else {
-      // Example: monitoring for all iBeacons with a wildcard UUID
-      // In a real implementation, you would likely use specific UUIDs
-      // This is just a placeholder
       result(FlutterError(code: "NO_BEACON_SELECTED", message: "No beacon selected", details: nil))
       return
     }
@@ -224,7 +213,7 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     } else if let majorStr = args["major"] as? String, let major = UInt16(majorStr) {
       majorValue = major
     }
-
+    
     if let minor = args["minor"] as? UInt16 {
       minorValue = minor
     } else if let minorStr = args["minor"] as? String, let minor = UInt16(minorStr) {
@@ -278,11 +267,11 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
       ]
       
       if let major = beaconRegion.beaconIdentityConstraint.major {
-        regionMap["major"] = "\(major)"
+        regionMap["major"] = String(major)
       }
       
       if let minor = beaconRegion.beaconIdentityConstraint.minor {
-        regionMap["minor"] = "\(minor)"
+        regionMap["minor"] = String(minor)
       }
       
       return regionMap
@@ -290,8 +279,6 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     
     result(regions)
   }
-
-
 }
 
 // MARK: - Stream Handlers
