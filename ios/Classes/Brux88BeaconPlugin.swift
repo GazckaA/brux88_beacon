@@ -28,16 +28,16 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     let instance = Brux88BeaconPlugin(methodChannel: channel, beaconsChannel: beaconsChannel, monitoringChannel: monitoringChannel)
     registrar.addMethodCallDelegate(instance, channel: channel)
     
-    beaconsChannel.setStreamHandler(BeaconsStreamHandler(sink: { sink in
-      instance.beaconsSink = sink
-    }, onCancel: {
-      instance.beaconsSink = nil
+    beaconsChannel.setStreamHandler(BeaconsStreamHandler(sink: { [weak instance] sink in
+      instance?.beaconsSink = sink
+    }, onCancel: { [weak instance] in
+      instance?.beaconsSink = nil
     }))
-    
-    monitoringChannel.setStreamHandler(MonitoringStreamHandler(sink: { sink in
-      instance.monitoringSink = sink
-    }, onCancel: {
-      instance.monitoringSink = nil
+
+    monitoringChannel.setStreamHandler(MonitoringStreamHandler(sink: { [weak instance] sink in
+      instance?.monitoringSink = sink
+    }, onCancel: { [weak instance] in
+      instance?.monitoringSink = nil
     }))
   }
   
@@ -103,9 +103,10 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
         }
       }
       
-      let beaconRegion = CLBeaconRegion(beaconIdentityConstraint: CLBeaconIdentityConstraint(uuid: selectedUUID, major: selectedBeaconMajor, minor: selectedBeaconMinor), identifier: "SelectedBeacon")
+      let constraint = CLBeaconIdentityConstraint(uuid: selectedUUID, major: selectedBeaconMajor, minor: selectedBeaconMinor)
+      let beaconRegion = CLBeaconRegion(beaconIdentityConstraint: constraint, identifier: "SelectedBeacon")
       locationManager.startMonitoring(for: beaconRegion)
-      locationManager.startRangingBeacons(satisfying: CLBeaconIdentityConstraint(uuid: selectedUUID, major: selectedBeaconMajor, minor: selectedBeaconMinor))
+      locationManager.startRangingBeacons(satisfying: constraint)
     } else {
       // Example: monitoring for all iBeacons with a wildcard UUID
       // In a real implementation, you would likely use specific UUIDs
@@ -218,11 +219,15 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     var majorValue: CLBeaconMajorValue?
     var minorValue: CLBeaconMinorValue?
     
-    if let majorStr = args["major"] as? String, let major = UInt16(majorStr) {
+    if let major = args["major"] as? UInt16 {
+      majorValue = major
+    } else if let majorStr = args["major"] as? String, let major = UInt16(majorStr) {
       majorValue = major
     }
-    
-    if let minorStr = args["minor"] as? String, let minor = UInt16(minorStr) {
+
+    if let minor = args["minor"] as? UInt16 {
+      minorValue = minor
+    } else if let minorStr = args["minor"] as? String, let minor = UInt16(minorStr) {
       minorValue = minor
     }
     
