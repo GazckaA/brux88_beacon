@@ -13,8 +13,8 @@ public class Brux88BeaconPlugin: NSObject,
   private var beaconsEventChannel: FlutterEventChannel
   private var monitoringEventChannel: FlutterEventChannel
 
-  private var beaconsSink: FlutterEventSink?
-  private var monitoringSink: FlutterEventSink?
+  private let beaconsStreamHandler = BeaconsStreamHandler()
+  private let monitoringStreamHandler = MonitoringStreamHandler()
 
   private let locationManager = CLLocationManager()
   private var centralManager: CBCentralManager!
@@ -28,17 +28,17 @@ public class Brux88BeaconPlugin: NSObject,
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
-      name: "com.brux88.flutter_plinn_beacon/methods",
+      name: "com.brux88.brux88_beacon/methods",
       binaryMessenger: registrar.messenger()
     )
 
     let beaconsChannel = FlutterEventChannel(
-      name: "com.brux88.flutter_plinn_beacon/beacons",
+      name: "com.brux88.brux88_beacon/beacons",
       binaryMessenger: registrar.messenger()
     )
 
     let monitoringChannel = FlutterEventChannel(
-      name: "com.brux88.flutter_plinn_beacon/monitoring",
+      name: "com.brux88.brux88_beacon/monitoring",
       binaryMessenger: registrar.messenger()
     )
 
@@ -50,27 +50,8 @@ public class Brux88BeaconPlugin: NSObject,
 
     registrar.addMethodCallDelegate(instance, channel: channel)
 
-    beaconsChannel.setStreamHandler(
-      BeaconsStreamHandler(
-        onListen: { [weak instance] sink in
-          instance?.beaconsSink = sink
-        },
-        onCancel: { [weak instance] in
-          instance?.beaconsSink = nil
-        }
-      )
-    )
-
-    monitoringChannel.setStreamHandler(
-      MonitoringStreamHandler(
-        onListen: { [weak instance] sink in
-          instance?.monitoringSink = sink
-        },
-        onCancel: { [weak instance] in
-          instance?.monitoringSink = nil
-        }
-      )
-    )
+    beaconsChannel.setStreamHandler(instance.beaconsStreamHandler)
+    monitoringChannel.setStreamHandler(instance.monitoringStreamHandler)
   }
 
   init(methodChannel: FlutterMethodChannel,
@@ -103,15 +84,11 @@ public class Brux88BeaconPlugin: NSObject,
         return
       }
 
-      let major = args["major"] as? String
-      let minor = args["minor"] as? String
-      let enabled = args["enabled"] as? Bool ?? true
-
       setBeaconToMonitor(
         uuid: uuid,
-        major: major,
-        minor: minor,
-        enabled: enabled,
+        major: args["major"] as? String,
+        minor: args["minor"] as? String,
+        enabled: args["enabled"] as? Bool ?? true,
         result: result
       )
 
@@ -216,8 +193,6 @@ public class Brux88BeaconPlugin: NSObject,
                               didRangeBeacons beacons: [CLBeacon],
                               in region: CLBeaconRegion) {
 
-    guard let sink = beaconsSink else { return }
-
     let data = beacons.map {
       [
         "uuid": $0.uuid.uuidString,
@@ -226,23 +201,23 @@ public class Brux88BeaconPlugin: NSObject,
         "distance": $0.accuracy,
         "rssi": $0.rssi,
         "txPower": 0
-      ] as [String : Any]
+      ] as [String: Any]
     }
 
-    sink(data)
+    beaconsStreamHandler.sink?(data)
   }
 
   public func locationManager(_ manager: CLLocationManager,
                               didEnterRegion region: CLRegion) {
     if region is CLBeaconRegion {
-      monitoringSink?("INSIDE")
+      monitoringStreamHandler.sink?("INSIDE")
     }
   }
 
   public func locationManager(_ manager: CLLocationManager,
                               didExitRegion region: CLRegion) {
     if region is CLBeaconRegion {
-      monitoringSink?("OUTSIDE")
+      monitoringStreamHandler.sink?("OUTSIDE")
     }
   }
 
@@ -254,47 +229,31 @@ public class Brux88BeaconPlugin: NSObject,
 // MARK: - Stream Handlers
 
 class BeaconsStreamHandler: NSObject, FlutterStreamHandler {
-
-  private let onListen: (FlutterEventSink) -> Void
-  private let onCancel: () -> Void
-
-  init(onListen: @escaping (FlutterEventSink) -> Void,
-       onCancel: @escaping () -> Void) {
-    self.onListen = onListen
-    self.onCancel = onCancel
-  }
+  var sink: FlutterEventSink?
 
   func onListen(withArguments arguments: Any?,
                 eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-    onListen(events)
+    sink = events
     return nil
   }
 
   func onCancel(withArguments arguments: Any?) -> FlutterError? {
-    onCancel()
+    sink = nil
     return nil
   }
 }
 
 class MonitoringStreamHandler: NSObject, FlutterStreamHandler {
-
-  private let onListen: (FlutterEventSink) -> Void
-  private let onCancel: () -> Void
-
-  init(onListen: @escaping (FlutterEventSink) -> Void,
-       onCancel: @escaping () -> Void) {
-    self.onListen = onListen
-    self.onCancel = onCancel
-  }
+  var sink: FlutterEventSink?
 
   func onListen(withArguments arguments: Any?,
                 eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-    onListen(events)
+    sink = events
     return nil
   }
 
   func onCancel(withArguments arguments: Any?) -> FlutterError? {
-    onCancel()
+    sink = nil
     return nil
   }
 }

@@ -10,6 +10,9 @@ import 'models/notification_settings.dart';
 import 'models/scan_settings.dart';
 
 class BeaconManager {
+  bool get _isIOS => Platform.isIOS;
+  bool get _isAndroid => Platform.isAndroid;
+
   static const MethodChannel _methodChannel =
       MethodChannel('com.brux88.brux88_beacon/methods');
 
@@ -41,13 +44,15 @@ class BeaconManager {
 
       // Imposta il flag di monitoraggio a false nelle preferenze
       // senza cercare di fermare il monitoraggio attivo
-      try {
-        // Imposta direttamente il flag di monitoraggio a false
-        await _methodChannel.invokeMethod('setMonitoringEnabled', false);
-        print('Set monitoring flag to false before initialization');
-      } catch (e) {
-        print('Error setting monitoring flag: $e');
-        // Continua comunque con l'inizializzazione
+      if (_isAndroid) {
+        try {
+          // Imposta direttamente il flag di monitoraggio a false
+          await _methodChannel.invokeMethod('setMonitoringEnabled', false);
+          print('Set monitoring flag to false before initialization');
+        } catch (e) {
+          print('Error setting monitoring flag: $e');
+          // Continua comunque con l'inizializzazione
+        }
       }
 
       // Ora proviamo a inizializzare
@@ -82,7 +87,7 @@ class BeaconManager {
       } else if (event is Map) {
         // Se è un singolo beacon (mappa invece di lista di mappe)
         try {
-          final beacon = Beacon.fromMap(event as Map<dynamic, dynamic>);
+          final beacon = Beacon.fromMap(event);
           _beaconsController.add([beacon]);
         } catch (e) {
           print('Error parsing single beacon: $e');
@@ -124,6 +129,7 @@ class BeaconManager {
   }
 
   Future<bool> enableAllAutoRestart() async {
+    if (_isIOS) return true;
     try {
       final autoRestart = await setAutoRestartEnabled(true);
       final alarms = await setupRecurringAlarm();
@@ -139,6 +145,7 @@ class BeaconManager {
   }
 
   Future<bool> disableAllAutoRestart() async {
+    if (_isIOS) return true;
     final watchdog = await setWatchdogEnabled(false);
     final autoRestart = await setAutoRestartEnabled(false);
     final alarms = await cancelRecurringAlarm();
@@ -147,6 +154,7 @@ class BeaconManager {
   }
 
   Future<bool> setWatchdogEnabled(bool enabled) async {
+    if (_isIOS) return false;
     return await _methodChannel.invokeMethod<bool>(
             'setWatchdogEnabled', enabled) ??
         false;
@@ -159,6 +167,7 @@ class BeaconManager {
 
   /// Enable/disable automatic service restart mechanisms
   Future<bool> setAutoRestartEnabled(bool enabled) async {
+    if (_isIOS) return false;
     return await _methodChannel.invokeMethod<bool>(
             'setAutoRestartEnabled', enabled) ??
         false;
@@ -166,12 +175,14 @@ class BeaconManager {
 
   /// Setup a recurring alarm to restart the beacon monitoring service periodically
   Future<bool> setupRecurringAlarm() async {
+    if (_isIOS) return false;
     return await _methodChannel.invokeMethod<bool>('setupRecurringAlarm') ??
         false;
   }
 
   /// Cancel the recurring alarm
   Future<bool> cancelRecurringAlarm() async {
+    if (_isIOS) return false;
     return await _methodChannel.invokeMethod<bool>('cancelRecurringAlarm') ??
         false;
   }
@@ -245,6 +256,7 @@ class BeaconManager {
 
   /// Start only the background service without foreground monitoring
   Future<bool> startBackgroundService() async {
+    if (_isIOS) return false;
     if (!_isInitialized) await initialize();
     return await _methodChannel.invokeMethod<bool>('startBackgroundService') ??
         false;
@@ -252,12 +264,14 @@ class BeaconManager {
 
   /// Stop only the background service
   Future<bool> stopBackgroundService() async {
+    if (_isIOS) return false;
     return await _methodChannel.invokeMethod<bool>('stopBackgroundService') ??
         false;
   }
 
   /// Restart the background service
   Future<bool> restartBackgroundService() async {
+    if (_isIOS) return false;
     try {
       await stopBackgroundService();
       // Piccola pausa per assicurarsi che il servizio sia completamente fermato
@@ -271,6 +285,7 @@ class BeaconManager {
 
   /// Check if the background service is running
   Future<bool> isBackgroundServiceRunning() async {
+    if (_isIOS) return false;
     return await _methodChannel
             .invokeMethod<bool>('isBackgroundServiceRunning') ??
         false;
@@ -278,6 +293,7 @@ class BeaconManager {
 
   /// Enable/disable background service auto-start
   Future<bool> setBackgroundServiceEnabled(bool enabled) async {
+    if (_isIOS) return false;
     return await _methodChannel.invokeMethod<bool>(
             'setBackgroundServiceEnabled', enabled) ??
         false;
@@ -285,6 +301,7 @@ class BeaconManager {
 
   /// Check if background service auto-start is enabled
   Future<bool> isBackgroundServiceEnabled() async {
+    if (_isIOS) return false;
     return await _methodChannel
             .invokeMethod<bool>('isBackgroundServiceEnabled') ??
         false;
@@ -355,7 +372,7 @@ class BeaconManager {
 
   /// Richiede il permesso per impostare allarmi esatti (necessario per Android 12+)
   Future<bool> requestExactAlarmPermission() async {
-    if (Platform.isAndroid) {
+    if (_isAndroid) {
       return await _methodChannel
               .invokeMethod<bool>('requestExactAlarmPermission') ??
           false;
