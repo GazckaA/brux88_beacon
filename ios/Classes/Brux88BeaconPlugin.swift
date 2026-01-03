@@ -25,7 +25,7 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     let beaconsChannel = FlutterEventChannel(name: "com.brux88.flutter_plinn_beacon/beacons", binaryMessenger: registrar.messenger())
     let monitoringChannel = FlutterEventChannel(name: "com.brux88.flutter_plinn_beacon/monitoring", binaryMessenger: registrar.messenger())
     
-    let instance = SwiftFlutterPlinnBeaconPlugin(methodChannel: channel, beaconsChannel: beaconsChannel, monitoringChannel: monitoringChannel)
+    let instance = Brux88BeaconPlugin(methodChannel: channel, beaconsChannel: beaconsChannel, monitoringChannel: monitoringChannel)
     registrar.addMethodCallDelegate(instance, channel: channel)
     
     beaconsChannel.setStreamHandler(BeaconsStreamHandler(sink: { sink in
@@ -177,8 +177,8 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
     let beaconMaps = beacons.map { beacon -> [String: Any] in
       return [
         "uuid": beacon.uuid.uuidString,
-        "major": String(beacon.major.intValue),
-        "minor": String(beacon.minor.intValue),
+        "major": String(beacon.major),
+        "minor": String(beacon.minor),
         "distance": beacon.accuracy,
         "rssi": beacon.rssi,
         "txPower": 0 // iOS doesn't expose txPower
@@ -273,11 +273,11 @@ public class Brux88BeaconPlugin: NSObject, FlutterPlugin, CLLocationManagerDeleg
       ]
       
       if let major = beaconRegion.beaconIdentityConstraint.major {
-        regionMap["major"] = "\(major.intValue)"
+        regionMap["major"] = "\(major)"
       }
       
       if let minor = beaconRegion.beaconIdentityConstraint.minor {
-        regionMap["minor"] = "\(minor.intValue)"
+        regionMap["minor"] = "\(minor)"
       }
       
       return regionMap
